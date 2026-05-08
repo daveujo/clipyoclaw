@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 0077
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Config ─────────────────────────────────────────────────────────────
 export DATABASE_URL="${DATABASE_URL:-postgres://postgres:paperclip@localhost:5432/paperclip}"
 export PORT="${PORT:-3100}"
 export SERVE_UI="${SERVE_UI:-true}"
@@ -42,6 +42,10 @@ OPENAI_API_KEY_USER_PROVIDED="${OPENAI_API_KEY}"
 # - NVIDIA_API_KEYS : single secret containing comma/newline-separated keys
 export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
 export NVIDIA_API_KEYS="${NVIDIA_API_KEYS:-}"
+# Optional NVIDIA provider registry JSON loaded at startup.
+# Supports either a raw JSON blob or a path to a JSON file.
+export NVIDIA_PROVIDER_JSON="${NVIDIA_PROVIDER_JSON:-}"
+export NVIDIA_PROVIDER_JSON_FILE="${NVIDIA_PROVIDER_JSON_FILE:-}"
 # Parses comma/newline-separated key material and returns newline-separated
 # unique, trimmed keys. Empty entries are ignored.
 parse_secret_list() {
@@ -85,6 +89,17 @@ export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
 mkdir -p "${PAPERCLIP_HOME}"
 
+# Load NVIDIA provider registry once at startup if supplied.
+if [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ] && [ -f "${NVIDIA_PROVIDER_JSON_FILE}" ]; then
+    NVIDIA_PROVIDER_JSON="$(cat "${NVIDIA_PROVIDER_JSON_FILE}")"
+fi
+if [ -n "${NVIDIA_PROVIDER_JSON:-}" ]; then
+    NVIDIA_PROVIDER_JSON_FILE="${PAPERCLIP_HOME}/nvidia-provider.json"
+    printf '%s' "${NVIDIA_PROVIDER_JSON}" > "${NVIDIA_PROVIDER_JSON_FILE}"
+    chmod 600 "${NVIDIA_PROVIDER_JSON_FILE}"
+    export PAPERCLIP_NVIDIA_PROVIDER_JSON_FILE="${NVIDIA_PROVIDER_JSON_FILE}"
+fi
+
 # Auth secrets (generate + persist so they survive restarts)
 AUTH_SECRET_FILE="${PAPERCLIP_HOME}/.auth-secret"
 if [ -z "${BETTER_AUTH_SECRET:-}" ]; then
@@ -116,7 +131,7 @@ if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CL
     echo ""
 fi
 
-# ── Banner ────────────────────────────────────────────────────────────────────
+# ── Banner ─────────────────────────────────────────────────────────────
 echo ""
 echo "  ╔════════════════════════════════════╗"
 echo "  ║          HuggingClip               ║"
@@ -129,7 +144,7 @@ echo "Deploy mode  : ${PAPERCLIP_DEPLOYMENT_MODE}"
 echo "Sync every   : ${SYNC_INTERVAL}s"
 echo ""
 
-# ── PostgreSQL ────────────────────────────────────────────────────────────────
+# ── PostgreSQL ──────────────────────────────────────────────────────────────
 PG_VERSION=$(ls /usr/lib/postgresql/ 2>/dev/null | sort -V | tail -1)
 if [ -z "$PG_VERSION" ]; then
     echo "ERROR: PostgreSQL not found"
@@ -486,7 +501,6 @@ PYEOF
         rm -f /tmp/invite-url.txt
         echo "Admin account already configured"
     fi
-
 
 else
     echo "Warning: Paperclip did not become ready in 90s"
