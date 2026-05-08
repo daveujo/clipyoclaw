@@ -90,15 +90,19 @@ export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 mkdir -p "${PAPERCLIP_HOME}"
 
 # Load NVIDIA provider registry once at startup if supplied.
-if [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ] && [ -f "${NVIDIA_PROVIDER_JSON_FILE}" ]; then
-    NVIDIA_PROVIDER_JSON="$(cat "${NVIDIA_PROVIDER_JSON_FILE}")"
-fi
-if [ -n "${NVIDIA_PROVIDER_JSON:-}" ]; then
-    NVIDIA_PROVIDER_JSON_FILE="${PAPERCLIP_HOME}/nvidia-provider.json"
-    printf '%s' "${NVIDIA_PROVIDER_JSON}" > "${NVIDIA_PROVIDER_JSON_FILE}"
-    chmod 600 "${NVIDIA_PROVIDER_JSON_FILE}"
-    export PAPERCLIP_NVIDIA_PROVIDER_JSON_FILE="${NVIDIA_PROVIDER_JSON_FILE}"
-fi
+# Keep the latest boot-time copy in a file Paperclip/child processes can read.
+materialize_nvidia_provider_json() {
+    if [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ] && [ -f "${NVIDIA_PROVIDER_JSON_FILE}" ]; then
+        NVIDIA_PROVIDER_JSON="$(cat "${NVIDIA_PROVIDER_JSON_FILE}")"
+    fi
+    if [ -n "${NVIDIA_PROVIDER_JSON:-}" ]; then
+        NVIDIA_PROVIDER_JSON_FILE="${PAPERCLIP_HOME}/nvidia-provider.json"
+        printf '%s' "${NVIDIA_PROVIDER_JSON}" > "${NVIDIA_PROVIDER_JSON_FILE}"
+        chmod 600 "${NVIDIA_PROVIDER_JSON_FILE}"
+        export PAPERCLIP_NVIDIA_PROVIDER_JSON_FILE="${NVIDIA_PROVIDER_JSON_FILE}"
+    fi
+}
+materialize_nvidia_provider_json
 
 # Auth secrets (generate + persist so they survive restarts)
 AUTH_SECRET_FILE="${PAPERCLIP_HOME}/.auth-secret"
@@ -214,6 +218,9 @@ if [ -n "${HF_TOKEN:-}" ]; then
 else
     echo "HF_TOKEN not set — running without backup persistence"
 fi
+
+# Re-materialize NVIDIA provider registry after restore so backups cannot overwrite it.
+materialize_nvidia_provider_json
 
 # ── Cloudflare Proxy ──────────────────────────────────────────────────────────
 if [ -n "${CLOUDFLARE_WORKERS_TOKEN:-}" ]; then
