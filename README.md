@@ -233,7 +233,7 @@ HuggingClip/
 ## 🐛 Troubleshooting
 
 **No LLM providers configured warning**
-Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `NVIDIA_API_KEYS`, or `NVIDIA_API_KEY` in Space secrets.
+Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `NVIDIA_API_KEYS` in Space secrets (`NVIDIA_API_KEY` legacy single-key fallback is still supported).
 
 **Admin setup link not showing**
 Check Space logs — if Paperclip started but admin setup link is missing, the bootstrap ran but found an existing account. Log in at `/app/`.

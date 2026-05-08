@@ -36,12 +36,14 @@ export PAPERCLIP_ALLOWED_HOSTNAMES="${PAPERCLIP_ALLOWED_HOSTNAMES:-${_ALLOWED}}"
 # LLM API keys
 export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
-OPENAI_API_KEY_EXPLICIT="${OPENAI_API_KEY}"
+OPENAI_API_KEY_USER_PROVIDED="${OPENAI_API_KEY}"
 # NVIDIA (OpenAI-compatible) key support:
 # - NVIDIA_API_KEY  : single key (backward-compatible)
 # - NVIDIA_API_KEYS : single secret containing comma/newline-separated keys
 export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
 export NVIDIA_API_KEYS="${NVIDIA_API_KEYS:-}"
+# Parses comma/newline-separated key material and returns newline-separated
+# unique, trimmed keys. Empty entries are ignored.
 parse_secret_list() {
     python3 - "$1" <<'PYEOF'
 import sys
@@ -109,7 +111,7 @@ fi
 # ── Validate LLM providers ───────────────────────────────────────────────────
 if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
     echo "⚠️  WARNING: No LLM provider configured"
-    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY, NVIDIA_API_KEYS, NVIDIA_API_KEY"
+    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY, NVIDIA_API_KEYS"
     echo "   Agents will fail to run without an LLM provider"
     echo ""
 fi
@@ -346,7 +348,7 @@ if [ -n "${OPENAI_API_KEY:-}" ]; then
     CODEX_PROVIDER_ID="openai-hf"
     CODEX_PROVIDER_NAME="OpenAI"
     CODEX_PROVIDER_BASE_URL="https://api.openai.com/v1"
-    if [ -z "${OPENAI_API_KEY_EXPLICIT:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
+    if [ -z "${OPENAI_API_KEY_USER_PROVIDED:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
         CODEX_PROVIDER_ID="nvidia-hf"
         CODEX_PROVIDER_NAME="NVIDIA"
         CODEX_PROVIDER_BASE_URL="https://integrate.api.nvidia.com/v1"
