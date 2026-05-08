@@ -36,6 +36,46 @@ export PAPERCLIP_ALLOWED_HOSTNAMES="${PAPERCLIP_ALLOWED_HOSTNAMES:-${_ALLOWED}}"
 # LLM API keys
 export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+OPENAI_API_KEY_USER_PROVIDED="${OPENAI_API_KEY}"
+# NVIDIA (OpenAI-compatible) key support:
+# - NVIDIA_API_KEY  : single key (backward-compatible)
+# - NVIDIA_API_KEYS : single secret containing comma/newline-separated keys
+export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
+export NVIDIA_API_KEYS="${NVIDIA_API_KEYS:-}"
+# Parses comma/newline-separated key material and returns newline-separated
+# unique, trimmed keys. Empty entries are ignored.
+parse_secret_list() {
+    python3 - "$1" <<'PYEOF'
+import sys
+
+raw = sys.argv[1]
+seen = set()
+result = []
+
+for part in raw.replace(",", "\n").splitlines():
+    key = part.strip()
+    if not key or key in seen:
+        continue
+    seen.add(key)
+    result.append(key)
+
+print("\n".join(result))
+PYEOF
+}
+if [ -z "${NVIDIA_API_KEYS:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
+    NVIDIA_API_KEYS="${NVIDIA_API_KEY}"
+fi
+if [ -n "${NVIDIA_API_KEYS:-}" ]; then
+    NVIDIA_API_KEYS_PARSED="$(parse_secret_list "${NVIDIA_API_KEYS}")"
+    if [ -n "${NVIDIA_API_KEYS_PARSED}" ]; then
+        NVIDIA_API_KEY="$(printf '%s\n' "${NVIDIA_API_KEYS_PARSED}" | head -n 1)"
+        export NVIDIA_API_KEY
+    fi
+fi
+if [ -z "${OPENAI_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
+    # Fallback for OpenAI-compatible clients.
+    export OPENAI_API_KEY="${NVIDIA_API_KEY}"
+fi
 # Anthropic/Claude Code — set one or neither:
 #   CLAUDE_CODE_OAUTH_TOKEN : long-lived OAuth token (sk-ant-oat01-..., 1 year)
 #                             Generate at: claude.ai/settings → "Claude Code" → "Create token"
@@ -71,7 +111,7 @@ fi
 # ── Validate LLM providers ───────────────────────────────────────────────────
 if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
     echo "⚠️  WARNING: No LLM provider configured"
-    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY"
+    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY, NVIDIA_API_KEYS"
     echo "   Agents will fail to run without an LLM provider"
     echo ""
 fi
@@ -305,14 +345,22 @@ trap cleanup SIGTERM SIGINT
 # pass to subprocesses). Workaround: custom provider with experimental_bearer_token
 # baked in. Can't use [model_providers.openai] — reserved built-in ID.
 if [ -n "${OPENAI_API_KEY:-}" ]; then
+    CODEX_PROVIDER_ID="openai-hf"
+    CODEX_PROVIDER_NAME="OpenAI"
+    CODEX_PROVIDER_BASE_URL="https://api.openai.com/v1"
+    if [ -z "${OPENAI_API_KEY_USER_PROVIDED:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
+        CODEX_PROVIDER_ID="nvidia-hf"
+        CODEX_PROVIDER_NAME="NVIDIA"
+        CODEX_PROVIDER_BASE_URL="https://integrate.api.nvidia.com/v1"
+    fi
     mkdir -p /home/paperclip/.codex
     cat > /home/paperclip/.codex/config.toml <<TOMLEOF
 forced_login_method = "api"
-model_provider = "openai-hf"
+model_provider = "${CODEX_PROVIDER_ID}"
 
-[model_providers.openai-hf]
-name = "OpenAI"
-base_url = "https://api.openai.com/v1"
+[model_providers.${CODEX_PROVIDER_ID}]
+name = "${CODEX_PROVIDER_NAME}"
+base_url = "${CODEX_PROVIDER_BASE_URL}"
 experimental_bearer_token = "${OPENAI_API_KEY}"
 requires_openai_auth = false
 TOMLEOF
@@ -373,4 +421,3 @@ echo "  API              : http://localhost:7861/api/"
 echo ""
 
 wait $PAPERCLIP_PID
-
