@@ -70,6 +70,7 @@ In your new Space's **Settings → Variables and secrets**, add at least one LLM
 | `ANTHROPIC_API_KEY` | Claude API key from [console.anthropic.com](https://console.anthropic.com) |
 | `GEMINI_API_KEY` | Google AI Studio key from [ai.google.dev](https://ai.google.dev) |
 | `OPENAI_API_KEY` | OpenAI key from [platform.openai.com](https://platform.openai.com) |
+| `NVIDIA_API_KEYS` | NVIDIA NIM API key list (single secret; comma/newline-separated) from [build.nvidia.com](https://build.nvidia.com) |
 
 > [!TIP]
 > Add `HF_TOKEN` (a token with write access to your account) to enable database backup persistence. Without it, data is lost on restart.
@@ -93,6 +94,7 @@ No secrets are strictly required to start, but you need at least one LLM key to 
 | `ANTHROPIC_API_KEY` | Claude agents |
 | `GEMINI_API_KEY` | Gemini agents |
 | `OPENAI_API_KEY` | OpenAI agents |
+| `NVIDIA_API_KEYS` | NVIDIA NIM agents via OpenAI-compatible API (`NVIDIA_API_KEY` also supported) |
 
 ### Recommended
 
@@ -121,6 +123,7 @@ Set the relevant API key and Paperclip will use it automatically when you config
 | **Anthropic (Claude)** | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
 | **Google (Gemini)** | `GEMINI_API_KEY` | [ai.google.dev](https://ai.google.dev) |
 | **OpenAI (GPT)** | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) |
+| **NVIDIA NIM** | `NVIDIA_API_KEYS` (or `NVIDIA_API_KEY`) | [build.nvidia.com](https://build.nvidia.com) |
 
 You can add multiple providers — Paperclip lets you choose the model per-agent.
 
@@ -230,7 +233,7 @@ HuggingClip/
 ## 🐛 Troubleshooting
 
 **No LLM providers configured warning**
-Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY` in Space secrets.
+Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `NVIDIA_API_KEYS`, or `NVIDIA_API_KEY` in Space secrets.
 
 **Admin setup link not showing**
 Check Space logs — if Paperclip started but admin setup link is missing, the bootstrap ran but found an existing account. Log in at `/app/`.
