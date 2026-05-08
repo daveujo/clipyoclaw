@@ -238,6 +238,9 @@ Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or 
 **Admin setup link not showing**
 Check Space logs — if Paperclip started but admin setup link is missing, the bootstrap ran but found an existing account. Log in at `/app/`.
 
+**Invite page opens but session is not created**
+HuggingClip now normalizes invite links to your public Space URL and redirects `/invite` to `/app/invite` so auth routes stay consistent behind the proxy. If this still happens, verify `SPACE_HOST` (or `PAPERCLIP_PUBLIC_URL`) is correct and restart so config is refreshed.
+
 **Backup not uploading**
 Verify `HF_TOKEN` is set and has write access. Check the dashboard backup status. Run manually: `python3 /app/paperclip-sync.py sync` from inside the container.
 

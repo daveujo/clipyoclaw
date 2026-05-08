@@ -20,6 +20,43 @@ function parseRequestUrl(url) {
   }
 }
 
+function firstHeaderValue(value) {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value || "")
+    .split(",")[0]
+    .trim();
+}
+
+function inferPublicPort(host, proto) {
+  const hostValue = String(host || "");
+  if (hostValue.includes(":")) {
+    return hostValue.split(":").pop();
+  }
+  return proto === "https" ? "443" : "80";
+}
+
+function getForwardingContext(req) {
+  const host =
+    firstHeaderValue(req.headers["x-forwarded-host"]) ||
+    firstHeaderValue(req.headers.host) ||
+    `${APP_HOST}:${APP_PORT}`;
+  const protoHeader = firstHeaderValue(req.headers["x-forwarded-proto"]);
+  const proto = (protoHeader || (req.socket.encrypted ? "https" : "http"))
+    .toLowerCase()
+    .startsWith("https")
+    ? "https"
+    : "http";
+  const port =
+    firstHeaderValue(req.headers["x-forwarded-port"]) ||
+    inferPublicPort(host, proto);
+  const remoteAddress = req.socket.remoteAddress || "";
+  const priorForwardedFor = firstHeaderValue(req.headers["x-forwarded-for"]);
+  const forwardedFor = priorForwardedFor
+    ? `${priorForwardedFor}, ${remoteAddress}`
+    : remoteAddress;
+  return { host, proto, port, forwardedFor };
+}
+
 function getSyncStatus() {
   try {
     if (fs.existsSync(SYNC_STATUS_FILE)) {
@@ -386,13 +423,20 @@ const server = http.createServer(async (req, res) => {
     );
   }
 
+  if (pathname === "/invite") {
+    res.writeHead(302, { Location: `/app/invite${url.search}` });
+    return res.end();
+  }
+
   // Proxy logic to Paperclip (port 3100)
+  const forwarding = getForwardingContext(req);
   const proxyHeaders = {
     ...req.headers,
-    host: `${APP_HOST}:${APP_PORT}`,
-    "x-forwarded-for": req.socket.remoteAddress,
-    "x-forwarded-host": req.headers.host,
-    "x-forwarded-proto": "https",
+    host: forwarding.host,
+    "x-forwarded-for": forwarding.forwardedFor,
+    "x-forwarded-host": forwarding.host,
+    "x-forwarded-proto": forwarding.proto,
+    "x-forwarded-port": forwarding.port,
   };
 
   const proxyReq = http.request(

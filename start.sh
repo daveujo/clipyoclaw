@@ -273,6 +273,15 @@ import json, os
 home = os.environ.get("PAPERCLIP_HOME", "/paperclip")
 port = int(os.environ.get("PORT", "3100"))
 public_url = os.environ.get("PAPERCLIP_PUBLIC_URL", f"http://localhost:{port}")
+allowed_raw = os.environ.get("PAPERCLIP_ALLOWED_HOSTNAMES", "")
+allowed_hostnames = []
+seen = set()
+for part in allowed_raw.split(","):
+    host = part.strip()
+    if not host or host in seen:
+        continue
+    seen.add(host)
+    allowed_hostnames.append(host)
 
 config = {
     "$meta": {"version": 1, "updatedAt": "2024-01-01T00:00:00Z", "source": "onboard"},
@@ -287,7 +296,7 @@ config = {
         "exposure": os.environ.get("PAPERCLIP_DEPLOYMENT_EXPOSURE", "private"),
         "host": "0.0.0.0",
         "port": port,
-        "allowedHostnames": [],
+        "allowedHostnames": allowed_hostnames,
         "serveUi": True
     },
     "auth": {
@@ -312,6 +321,53 @@ os.makedirs(os.path.dirname(config_path), exist_ok=True)
 with open(config_path, "w") as f:
     json.dump(config, f, indent=2)
 print(f"  Config written to {config_path}")
+PYEOF
+fi
+
+# Keep auth/public URL + allowed hostnames aligned on every boot (including restores)
+if [ -f "${PAPERCLIP_CONFIG}" ]; then
+    python3 <<'PYEOF'
+import json, os
+
+config_path = os.environ.get("PAPERCLIP_CONFIG", "")
+public_url = os.environ.get("PAPERCLIP_PUBLIC_URL", "").strip()
+allowed_raw = os.environ.get("PAPERCLIP_ALLOWED_HOSTNAMES", "")
+
+if not config_path or not os.path.exists(config_path):
+    raise SystemExit(0)
+
+with open(config_path, "r", encoding="utf-8") as f:
+    config = json.load(f)
+
+changed = False
+
+if public_url:
+    auth = config.setdefault("auth", {})
+    if auth.get("baseUrlMode") != "explicit":
+        auth["baseUrlMode"] = "explicit"
+        changed = True
+    if auth.get("publicBaseUrl") != public_url:
+        auth["publicBaseUrl"] = public_url
+        changed = True
+
+desired_hostnames = []
+seen = set()
+for part in allowed_raw.split(","):
+    host = part.strip()
+    if not host or host in seen:
+        continue
+    seen.add(host)
+    desired_hostnames.append(host)
+
+if desired_hostnames:
+    server = config.setdefault("server", {})
+    if server.get("allowedHostnames") != desired_hostnames:
+        server["allowedHostnames"] = desired_hostnames
+        changed = True
+
+if changed:
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
 PYEOF
 fi
 
@@ -393,6 +449,29 @@ done
 if [ "$PAPERCLIP_READY" = true ]; then
     BOOTSTRAP_OUTPUT=$(HOME=/home/paperclip runuser -u paperclip -- pnpm paperclipai auth bootstrap-ceo 2>&1 || true)
     INVITE_URL=$(echo "$BOOTSTRAP_OUTPUT" | grep "Invite URL:" 2>/dev/null | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g' | grep -o 'https\?://[^ ]*' | head -1 || true)
+    if [ -n "$INVITE_URL" ] && [ -n "${PAPERCLIP_PUBLIC_URL:-}" ]; then
+INVITE_URL=$(python3 - "${INVITE_URL}" "${PAPERCLIP_PUBLIC_URL}" <<'PYEOF'
+import sys
+from urllib.parse import urlparse, urlunparse
+
+invite_url = (sys.argv[1] or "").strip()
+public_base = (sys.argv[2] or "").strip()
+
+try:
+    invite = urlparse(invite_url)
+    base = urlparse(public_base)
+    if invite.scheme and invite.netloc and base.scheme and base.netloc:
+        path = invite.path or "/"
+        if path == "/invite" or path.startswith("/invite/"):
+            path = f"/app{path}"
+        print(urlunparse((base.scheme, base.netloc, path, invite.params, invite.query, invite.fragment)))
+    else:
+        print(invite_url)
+except Exception:
+    print(invite_url)
+PYEOF
+)
+    fi
     if [ -n "$INVITE_URL" ]; then
         echo "$INVITE_URL" > /tmp/invite-url.txt
         echo ""
