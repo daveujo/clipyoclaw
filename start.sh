@@ -36,7 +36,7 @@ export PAPERCLIP_ALLOWED_HOSTNAMES="${PAPERCLIP_ALLOWED_HOSTNAMES:-${_ALLOWED}}"
 # LLM API keys
 export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
-OPENAI_API_KEY_ORIGINAL="${OPENAI_API_KEY}"
+OPENAI_API_KEY_EXPLICIT="${OPENAI_API_KEY}"
 # NVIDIA (OpenAI-compatible) key support:
 # - NVIDIA_API_KEY  : single key (backward-compatible)
 # - NVIDIA_API_KEYS : single secret containing comma/newline-separated keys
@@ -346,7 +346,7 @@ if [ -n "${OPENAI_API_KEY:-}" ]; then
     CODEX_PROVIDER_ID="openai-hf"
     CODEX_PROVIDER_NAME="OpenAI"
     CODEX_PROVIDER_BASE_URL="https://api.openai.com/v1"
-    if [ -z "${OPENAI_API_KEY_ORIGINAL:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
+    if [ -z "${OPENAI_API_KEY_EXPLICIT:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
         CODEX_PROVIDER_ID="nvidia-hf"
         CODEX_PROVIDER_NAME="NVIDIA"
         CODEX_PROVIDER_BASE_URL="https://integrate.api.nvidia.com/v1"
