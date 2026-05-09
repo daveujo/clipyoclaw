@@ -24,8 +24,8 @@ WORKDIR /app
 # Clone the app repository and install dependencies.
 RUN git clone --depth=1 https://github.com/paperclipai/paperclip.git .
 RUN corepack enable
+RUN pnpm install --ignore-scripts
 RUN pnpm --filter @paperclipai/plugin-sdk build
-RUN pnpm install
 RUN pnpm --filter @paperclipai/server build
 RUN pnpm --filter @paperclipai/ui build
 
