@@ -98,8 +98,10 @@ No secrets are strictly required to start, but you need at least one LLM key to 
 | `GEMINI_API_KEY` | Gemini agents |
 | `OPENAI_API_KEY` | OpenAI agents |
 | `OPENCODE_API_KEY` | OpenCode agents |
-| `NVIDIA_API_KEYS` | NVIDIA NIM agents via OpenAI-compatible API (`NVIDIA_API_KEY` also supported). Also preloaded into Opencode NVIDIA provider env fallback. |
+| `NVIDIA_API_KEYS` | NVIDIA NIM agents via OpenAI-compatible API (`NVIDIA_API_KEY` also supported) |
 | `NVIDIA_PROVIDER_JSON` | Optional NVIDIA model/provider JSON. If set, Opencode preloads NVIDIA models from it at startup. |
+
+When `NVIDIA_API_KEYS` is provided, startup also maps those keys into Opencode NVIDIA provider env fallbacks.
 
 ### Recommended
 
