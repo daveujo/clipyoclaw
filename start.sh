@@ -215,7 +215,7 @@ print(json.dumps(config, separators=(",", ":")))
 PYEOF
 )"
 }
-if [ -n "${NVIDIA_API_KEY:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ]; then
+if [ -n "${NVIDIA_API_KEY:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ] || [ -n "${PAPERCLIP_NVIDIA_PROVIDER_JSON_FILE:-}" ]; then
     configure_opencode_nvidia
 fi
 
@@ -336,7 +336,7 @@ fi
 
 # Re-materialize NVIDIA provider registry after restore so backups cannot overwrite it.
 materialize_nvidia_provider_json
-if [ -n "${NVIDIA_API_KEY:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ]; then
+if [ -n "${NVIDIA_API_KEY:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ] || [ -n "${PAPERCLIP_NVIDIA_PROVIDER_JSON_FILE:-}" ]; then
     configure_opencode_nvidia
 fi
 

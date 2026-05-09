@@ -99,7 +99,7 @@ No secrets are strictly required to start, but you need at least one LLM key to 
 | `OPENAI_API_KEY` | OpenAI agents |
 | `OPENCODE_API_KEY` | OpenCode agents |
 | `NVIDIA_API_KEYS` | NVIDIA NIM agents via OpenAI-compatible API (`NVIDIA_API_KEY` also supported) |
-| `NVIDIA_PROVIDER_JSON` | Optional NVIDIA model/provider JSON. If set, Opencode preloads NVIDIA models from it at startup. |
+| `NVIDIA_PROVIDER_JSON` | Optional NVIDIA model/provider JSON. If set, Opencode preloads NVIDIA models from it at startup (`NVIDIA_PROVIDER_JSON_FILE` also supported). |
 
 When `NVIDIA_API_KEYS` is provided, startup also maps those keys into Opencode NVIDIA provider env fallbacks.
 
