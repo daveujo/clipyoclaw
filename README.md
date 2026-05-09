@@ -1,3 +1,25 @@
+---
+title: Paperclip
+emoji: 📎
+colorFrom: gray
+colorTo: purple
+sdk: docker
+app_port: 7861
+pinned: true
+license: mit
+secrets:
+  - name: HF_TOKEN
+    description: Hugging Face API token for database backup.
+  - name: OPENCODE_API_KEY
+    description: OpenCode API key for OpenCode-powered agents.
+  - name: NVIDIA_API_KEYS
+    description: NVIDIA NIM API key list (single secret; comma/newline-separated) from build.nvidia.com
+  - name: NVIDIA_PROVIDER_JSON
+    description: Optional NVIDIA model/provider JSON.
+  - name: CLOUDFLARE_WORKERS_TOKEN
+    description: "Cloudflare API token — auto-creates a Worker proxy and KeepAlive monitor."
+---
+
 # Paperclip / HuggingClip
 
 ## LLM provider support
