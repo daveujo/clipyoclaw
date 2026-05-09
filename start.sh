@@ -34,20 +34,12 @@ fi
 export PAPERCLIP_ALLOWED_HOSTNAMES="${PAPERCLIP_ALLOWED_HOSTNAMES:-${_ALLOWED}}"
 
 # LLM API keys
-export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
-export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 export OPENCODE_API_KEY="${OPENCODE_API_KEY:-}"
-export OPENCODE_DISABLE_AUTOUPDATE="${OPENCODE_DISABLE_AUTOUPDATE:-1}"
-OPENAI_API_KEY_USER_PROVIDED="${OPENAI_API_KEY}"
-# NVIDIA (OpenAI-compatible) key support:
-# - NVIDIA_API_KEY  : single key (backward-compatible)
-# - NVIDIA_API_KEYS : single secret containing comma/newline-separated keys
 export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
 export NVIDIA_API_KEYS="${NVIDIA_API_KEYS:-}"
-# Optional NVIDIA provider registry JSON loaded at startup.
-# Supports either a raw JSON blob or a path to a JSON file.
 export NVIDIA_PROVIDER_JSON="${NVIDIA_PROVIDER_JSON:-}"
 export NVIDIA_PROVIDER_JSON_FILE="${NVIDIA_PROVIDER_JSON_FILE:-}"
+
 # Parses comma/newline-separated key material and returns newline-separated
 # unique, trimmed keys. Empty entries are ignored.
 parse_secret_list() {
@@ -68,6 +60,7 @@ for part in raw.replace(",", "\n").splitlines():
 print("\n".join(result))
 PYEOF
 }
+
 if [ -z "${NVIDIA_API_KEYS:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
     NVIDIA_API_KEYS="${NVIDIA_API_KEY}"
 fi
@@ -86,16 +79,6 @@ if [ -n "${NVIDIA_API_KEYS:-}" ]; then
         done <<< "${NVIDIA_API_KEYS_PARSED}"
     fi
 fi
-if [ -z "${OPENAI_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
-    # Fallback for OpenAI-compatible clients.
-    export OPENAI_API_KEY="${NVIDIA_API_KEY}"
-fi
-# Anthropic/Claude Code — set one or neither:
-#   CLAUDE_CODE_OAUTH_TOKEN : long-lived OAuth token (sk-ant-oat01-..., 1 year)
-#                             Generate at: claude.ai/settings → "Claude Code" → "Create token"
-#   ANTHROPIC_API_KEY       : API key mode (sk-ant-api03-..., pay-per-use)
-export CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}"
-export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
 mkdir -p "${PAPERCLIP_HOME}"
 
@@ -166,14 +149,7 @@ if env_vars:
             merged_env.append(item)
     nvidia["env"] = merged_env
 
-# Use the appropriate bearer token for Codex/OpenCode provider auth.
-code_auth_token = os.environ.get("OPENAI_API_KEY") or ""
-if os.environ.get("NVIDIA_API_KEY") and os.environ.get("OPENAI_API_KEY") == os.environ.get("NVIDIA_API_KEY"):
-    code_auth_token = os.environ.get("NVIDIA_API_KEY") or code_auth_token
-if code_auth_token and os.environ.get("NVIDIA_API_KEY") and not os.environ.get("OPENAI_API_KEY_USER_PROVIDED"):
-    code_auth_token = os.environ.get("NVIDIA_API_KEY")
-
-nvidia["experimental_bearer_token"] = code_auth_token
+nvidia["experimental_bearer_token"] = os.environ.get("OPENAI_API_KEY") or ""
 
 def extract_model_ids(value, out):
     if isinstance(value, dict):
@@ -251,13 +227,4 @@ if [ -z "${PAPERCLIP_AGENT_JWT_SECRET:-}" ]; then
     fi
 fi
 
-# ── Validate LLM providers ───────────────────────────────────────────────────
-if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENCODE_API_KEY:-}" ]; then
-    echo "⚠️  WARNING: No LLM provider configured"
-    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENCODE_API_KEY, NVIDIA_API_KEYS"
-    echo "   Agents will fail to run without an LLM provider"
-    echo ""
-fi
-
-# ── Banner ───────────────────────────────────────────────────────────
 echo "Starting Paperclip..."
