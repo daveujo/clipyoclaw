@@ -36,6 +36,8 @@ export PAPERCLIP_ALLOWED_HOSTNAMES="${PAPERCLIP_ALLOWED_HOSTNAMES:-${_ALLOWED}}"
 # LLM API keys
 export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+export OPENCODE_API_KEY="${OPENCODE_API_KEY:-}"
+export OPENCODE_DISABLE_AUTOUPDATE="${OPENCODE_DISABLE_AUTOUPDATE:-1}"
 OPENAI_API_KEY_USER_PROVIDED="${OPENAI_API_KEY}"
 # NVIDIA (OpenAI-compatible) key support:
 # - NVIDIA_API_KEY  : single key (backward-compatible)
@@ -74,6 +76,14 @@ if [ -n "${NVIDIA_API_KEYS:-}" ]; then
     if [ -n "${NVIDIA_API_KEYS_PARSED}" ]; then
         NVIDIA_API_KEY="$(printf '%s\n' "${NVIDIA_API_KEYS_PARSED}" | head -n 1)"
         export NVIDIA_API_KEY
+        _NVIDIA_KEY_INDEX=1
+        while IFS= read -r _NVIDIA_KEY; do
+            [ -z "${_NVIDIA_KEY}" ] && continue
+            _NVIDIA_ENV_VAR="NVIDIA_API_KEY_${_NVIDIA_KEY_INDEX}"
+            printf -v "${_NVIDIA_ENV_VAR}" '%s' "${_NVIDIA_KEY}"
+            export "${_NVIDIA_ENV_VAR}"
+            _NVIDIA_KEY_INDEX=$((_NVIDIA_KEY_INDEX + 1))
+        done <<< "${NVIDIA_API_KEYS_PARSED}"
     fi
 fi
 if [ -z "${OPENAI_API_KEY:-}" ] && [ -n "${NVIDIA_API_KEY:-}" ]; then
@@ -104,6 +114,111 @@ materialize_nvidia_provider_json() {
 }
 materialize_nvidia_provider_json
 
+configure_opencode_nvidia() {
+    OPENCODE_NVIDIA_ENV_VARS="NVIDIA_API_KEY"
+    if [ -n "${NVIDIA_API_KEYS_PARSED:-}" ]; then
+        OPENCODE_NVIDIA_ENV_VARS="$(printf '%s\n' "${NVIDIA_API_KEYS_PARSED}" | nl -w1 -s '' -v1 | sed 's/^/NVIDIA_API_KEY_/' | paste -sd, -)"
+        OPENCODE_NVIDIA_ENV_VARS="NVIDIA_API_KEY,${OPENCODE_NVIDIA_ENV_VARS}"
+    fi
+    export OPENCODE_NVIDIA_ENV_VARS
+    export OPENCODE_CONFIG_CONTENT="$(python3 <<'PYEOF'
+import json
+import os
+
+raw_config = (os.environ.get("OPENCODE_CONFIG_CONTENT") or "").strip()
+try:
+    config = json.loads(raw_config) if raw_config else {}
+except Exception:
+    config = {}
+if not isinstance(config, dict):
+    config = {}
+
+provider = config.get("provider")
+if not isinstance(provider, dict):
+    provider = {}
+    config["provider"] = provider
+
+nvidia = provider.get("nvidia")
+if not isinstance(nvidia, dict):
+    nvidia = {}
+    provider["nvidia"] = nvidia
+
+env_vars = []
+seen_env = set()
+for part in (os.environ.get("OPENCODE_NVIDIA_ENV_VARS") or "").split(","):
+    name = part.strip()
+    if not name or name in seen_env:
+        continue
+    seen_env.add(name)
+    env_vars.append(name)
+if env_vars:
+    existing_env = nvidia.get("env")
+    merged_env = []
+    seen_merged = set()
+    if isinstance(existing_env, list):
+        for item in existing_env:
+            if isinstance(item, str) and item.strip() and item not in seen_merged:
+                seen_merged.add(item)
+                merged_env.append(item)
+    for item in env_vars:
+        if item not in seen_merged:
+            seen_merged.add(item)
+            merged_env.append(item)
+    nvidia["env"] = merged_env
+
+def extract_model_ids(value, out):
+    if isinstance(value, dict):
+        models = value.get("models")
+        if isinstance(models, dict):
+            for model_id in models.keys():
+                if isinstance(model_id, str) and model_id.strip():
+                    out.add(model_id.strip())
+        elif isinstance(models, list):
+            for item in models:
+                if isinstance(item, str) and item.strip():
+                    out.add(item.strip())
+                elif isinstance(item, dict):
+                    for key in ("id", "model"):
+                        model_id = item.get(key)
+                        if isinstance(model_id, str) and model_id.strip():
+                            out.add(model_id.strip())
+                            break
+        for nested in value.values():
+            extract_model_ids(nested, out)
+    elif isinstance(value, list):
+        for nested in value:
+            extract_model_ids(nested, out)
+
+nvidia_provider_json = ""
+provider_file = (os.environ.get("PAPERCLIP_NVIDIA_PROVIDER_JSON_FILE") or "").strip()
+if provider_file and os.path.isfile(provider_file):
+    try:
+        with open(provider_file, "r", encoding="utf-8") as f:
+            nvidia_provider_json = f.read()
+    except Exception:
+        nvidia_provider_json = ""
+if not nvidia_provider_json:
+    nvidia_provider_json = (os.environ.get("NVIDIA_PROVIDER_JSON") or "").strip()
+
+if nvidia_provider_json:
+    try:
+        provider_json = json.loads(nvidia_provider_json)
+    except Exception:
+        provider_json = None
+    if provider_json is not None:
+        model_ids = set()
+        extract_model_ids(provider_json, model_ids)
+        if model_ids and not nvidia.get("models"):
+            nvidia["models"] = {model_id: {} for model_id in sorted(model_ids)}
+
+print(json.dumps(config, separators=(",", ":")))
+PYEOF
+)"
+}
+if [ -n "${NVIDIA_API_KEY:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ]; then
+    configure_opencode_nvidia
+fi
+
 # Auth secrets (generate + persist so they survive restarts)
 AUTH_SECRET_FILE="${PAPERCLIP_HOME}/.auth-secret"
 if [ -z "${BETTER_AUTH_SECRET:-}" ]; then
@@ -128,9 +243,9 @@ if [ -z "${PAPERCLIP_AGENT_JWT_SECRET:-}" ]; then
 fi
 
 # ── Validate LLM providers ───────────────────────────────────────────────────
-if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
+if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENCODE_API_KEY:-}" ]; then
     echo "⚠️  WARNING: No LLM provider configured"
-    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY, NVIDIA_API_KEYS"
+    echo "   Set at least one of: GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENCODE_API_KEY, NVIDIA_API_KEYS"
     echo "   Agents will fail to run without an LLM provider"
     echo ""
 fi
@@ -221,6 +336,9 @@ fi
 
 # Re-materialize NVIDIA provider registry after restore so backups cannot overwrite it.
 materialize_nvidia_provider_json
+if [ -n "${NVIDIA_API_KEY:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON:-}" ] || [ -n "${NVIDIA_PROVIDER_JSON_FILE:-}" ]; then
+    configure_opencode_nvidia
+fi
 
 # ── Cloudflare Proxy ──────────────────────────────────────────────────────────
 if [ -n "${CLOUDFLARE_WORKERS_TOKEN:-}" ]; then

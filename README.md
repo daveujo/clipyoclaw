@@ -16,6 +16,8 @@ secrets:
     description: Google Gemini API key for Gemini-powered agents.
   - name: OPENAI_API_KEY
     description: OpenAI API key for GPT-powered agents.
+  - name: OPENCODE_API_KEY
+    description: OpenCode API key for OpenCode-powered agents.
   - name: CLOUDFLARE_WORKERS_TOKEN
     description: "Cloudflare API token — auto-creates a Worker proxy and KeepAlive monitor."
 ---
@@ -70,6 +72,7 @@ In your new Space's **Settings → Variables and secrets**, add at least one LLM
 | `ANTHROPIC_API_KEY` | Claude API key from [console.anthropic.com](https://console.anthropic.com) |
 | `GEMINI_API_KEY` | Google AI Studio key from [ai.google.dev](https://ai.google.dev) |
 | `OPENAI_API_KEY` | OpenAI key from [platform.openai.com](https://platform.openai.com) |
+| `OPENCODE_API_KEY` | OpenCode key from [opencode.ai](https://opencode.ai) |
 | `NVIDIA_API_KEYS` | NVIDIA NIM API key list (single secret; comma/newline-separated) from [build.nvidia.com](https://build.nvidia.com) |
 
 > [!TIP]
@@ -94,7 +97,9 @@ No secrets are strictly required to start, but you need at least one LLM key to 
 | `ANTHROPIC_API_KEY` | Claude agents |
 | `GEMINI_API_KEY` | Gemini agents |
 | `OPENAI_API_KEY` | OpenAI agents |
-| `NVIDIA_API_KEYS` | NVIDIA NIM agents via OpenAI-compatible API (`NVIDIA_API_KEY` also supported) |
+| `OPENCODE_API_KEY` | OpenCode agents |
+| `NVIDIA_API_KEYS` | NVIDIA NIM agents via OpenAI-compatible API (`NVIDIA_API_KEY` also supported). Also preloaded into Opencode NVIDIA provider env fallback. |
+| `NVIDIA_PROVIDER_JSON` | Optional NVIDIA model/provider JSON. If set, Opencode preloads NVIDIA models from it at startup. |
 
 ### Recommended
 
@@ -123,6 +128,7 @@ Set the relevant API key and Paperclip will use it automatically when you config
 | **Anthropic (Claude)** | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
 | **Google (Gemini)** | `GEMINI_API_KEY` | [ai.google.dev](https://ai.google.dev) |
 | **OpenAI (GPT)** | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) |
+| **OpenCode** | `OPENCODE_API_KEY` | [opencode.ai](https://opencode.ai) |
 | **NVIDIA NIM** | `NVIDIA_API_KEYS` (or `NVIDIA_API_KEY`) | [build.nvidia.com](https://build.nvidia.com) |
 
 You can add multiple providers — Paperclip lets you choose the model per-agent.
@@ -184,6 +190,7 @@ docker build -t huggingclip .
 docker run -p 7861:7861 \
   -e HF_TOKEN=hf_xxxx \
   -e ANTHROPIC_API_KEY=sk-ant-xxxx \
+  -e OPENCODE_API_KEY=oc_xxxx \
   -v paperclip_data:/paperclip \
   huggingclip
 ```
@@ -233,7 +240,7 @@ HuggingClip/
 ## 🐛 Troubleshooting
 
 **No LLM providers configured warning**
-Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `NVIDIA_API_KEYS` in Space secrets (`NVIDIA_API_KEY` legacy single-key fallback is still supported).
+Set at least one of `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `OPENCODE_API_KEY`, or `NVIDIA_API_KEYS` in Space secrets (`NVIDIA_API_KEY` legacy single-key fallback is still supported).
 
 **Admin setup link not showing**
 Check Space logs — if Paperclip started but admin setup link is missing, the bootstrap ran but found an existing account. Log in at `/app/`.

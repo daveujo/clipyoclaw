@@ -55,7 +55,7 @@ RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql
 RUN npm init -y && npm install express@4 cors morgan
 
 # Install agent CLIs globally
-RUN npm install -g @google/gemini-cli @anthropic-ai/claude-code @openai/codex
+RUN npm install -g @google/gemini-cli @anthropic-ai/claude-code @openai/codex opencode-ai
 
 # Claude Code wrapper — auth mode selection:
 #   CLAUDE_CODE_OAUTH_TOKEN set → long-lived subscription OAuth token (sk-ant-oat01-...)
@@ -80,6 +80,20 @@ RUN if [ -e /usr/local/bin/codex ]; then \
     mv /usr/local/bin/codex /usr/local/bin/codex-real && \
     printf '#!/bin/sh\nunset NODE_OPTIONS\nexport NODE_OPTIONS="--max-old-space-size=4096 --no-deprecation --no-warnings"\nexec /usr/local/bin/codex-real "$@"\n' > /usr/local/bin/codex && \
     chmod +x /usr/local/bin/codex; \
+fi
+
+# OpenCode wrapper — drops cloudflare NODE_OPTIONS, caps heap size,
+# and disables auto-update prompts for headless/container runs.
+RUN if [ -e /usr/local/bin/opencode ]; then \
+    mv /usr/local/bin/opencode /usr/local/bin/opencode-real && \
+    { \
+      echo '#!/bin/sh'; \
+      echo 'unset NODE_OPTIONS'; \
+      echo 'export NODE_OPTIONS="--max-old-space-size=4096 --no-deprecation --no-warnings"'; \
+      echo 'export OPENCODE_DISABLE_AUTOUPDATE="${OPENCODE_DISABLE_AUTOUPDATE:-1}"'; \
+      echo 'exec /usr/local/bin/opencode-real "$@"'; \
+    } > /usr/local/bin/opencode && \
+    chmod +x /usr/local/bin/opencode; \
 fi
 
 # Gemini wrapper — fix for "Failed to relaunch the CLI process":
