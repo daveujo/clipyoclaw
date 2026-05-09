@@ -47,8 +47,10 @@ services:
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
       # NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       # NVIDIA_API_KEYS: ${NVIDIA_API_KEYS:-}
+      # NVIDIA_PROVIDER_JSON: ${NVIDIA_PROVIDER_JSON:-}
 
       # HF Backup (optional for local testing)
       HF_TOKEN: ${HF_TOKEN:-}
