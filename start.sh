@@ -167,19 +167,13 @@ if env_vars:
     nvidia["env"] = merged_env
 
 # Use the appropriate bearer token for Codex/OpenCode provider auth.
-# When NVIDIA is the active provider, the NVIDIA key must be used here so
-# requests to integrate.api.nvidia.com include Authorization.
 code_auth_token = os.environ.get("OPENAI_API_KEY") or ""
 if os.environ.get("NVIDIA_API_KEY") and os.environ.get("OPENAI_API_KEY") == os.environ.get("NVIDIA_API_KEY"):
     code_auth_token = os.environ.get("NVIDIA_API_KEY") or code_auth_token
-
-# If the provider registry includes explicit auth fields, prefer NVIDIA token
-# when the NVIDIA provider is configured.
 if code_auth_token and os.environ.get("NVIDIA_API_KEY") and not os.environ.get("OPENAI_API_KEY_USER_PROVIDED"):
     code_auth_token = os.environ.get("NVIDIA_API_KEY")
 
 nvidia["experimental_bearer_token"] = code_auth_token
-
 
 def extract_model_ids(value, out):
     if isinstance(value, dict):
