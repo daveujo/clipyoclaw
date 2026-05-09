@@ -266,4 +266,4 @@ if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CL
 fi
 
 # ── Banner ───────────────────────────────────────────────────────────
-...
+echo "Starting Paperclip..."
